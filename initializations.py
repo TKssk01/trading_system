@@ -163,6 +163,7 @@ class Initializations:
         self.cash_margin = 1    # 信用区分 (1: 現物)
         self.account_type = 4    # 口座種別 (4: 特定)
         self.qty = 0           # 注文数量
+        self.default_quantity = 100  # デフォルト注文数量
         self.front_order_type = 'MARKET'  # 執行条件
         self.price = None        # 注文価格 (指値の場合)
         self.expire_day = 0      # 注文有効期限 (0: 当日)

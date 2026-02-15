@@ -15,8 +15,13 @@ import urllib.request
 import pprint
 import yfinance as yf
 from zoneinfo import ZoneInfo
-from IPython.display import clear_output
-from IPython.display import display
+try:
+    from IPython.display import clear_output, display
+except Exception:
+    def clear_output(*args, **kwargs):
+        return None
+    def display(*args, **kwargs):
+        return None
 
 class TradingData:
     def __init__(self, init: Initializations, token):

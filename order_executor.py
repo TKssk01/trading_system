@@ -104,7 +104,7 @@ class OrderExecutor:
     def execute_orders(self):
         buy_price = 0
         sell_price = 0
-        quantity = 100
+        quantity = getattr(self.init, 'default_quantity', 100)
         SIDE = {"BUY": "2", "SELL": "1"}
 
         # 補間データの存在確認
