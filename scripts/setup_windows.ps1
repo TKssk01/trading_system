@@ -94,13 +94,14 @@ function Install-WithWinget {
     Write-Info "Checking installation status of ${DisplayName}..."
 
     # Check if already installed using winget list
-    $installed = winget list --id $PackageId 2>$null
+    $installed = winget list --id $PackageId --source winget 2>$null
     if ($LASTEXITCODE -eq 0 -and $installed -match $PackageId) {
         Write-Info "${DisplayName} is already installed. Skipping."
     }
     else {
         Write-Info "Installing ${DisplayName}..."
         winget install $PackageId `
+            --source winget `
             --accept-package-agreements `
             --accept-source-agreements `
             --silent
