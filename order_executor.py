@@ -6,7 +6,6 @@ import json
 import pprint
 import logging
 import time
-import ccxt
 import os
 import traceback
 import urllib.parse

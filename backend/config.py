@@ -7,7 +7,7 @@ _ENV_PATH = Path(__file__).resolve().parent / ".env"
 def _load_env_file():
     if not _ENV_PATH.exists():
         return
-    for line in _ENV_PATH.read_text().splitlines():
+    for line in _ENV_PATH.read_text(encoding="utf-8-sig").splitlines():
         line = line.strip()
         if not line or line.startswith('#') or '=' not in line:
             continue
