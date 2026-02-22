@@ -26,7 +26,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # --- Resolve project root ---
-$ProjectRoot = Split-Path (Split-Path $PSScriptRoot)
+$ProjectRoot = Split-Path $PSScriptRoot
 $EnvFile = Join-Path $ProjectRoot "backend\.env"
 
 Write-Host ""
