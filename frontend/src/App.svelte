@@ -15,6 +15,7 @@
     wallet_cash: null,
     wallet_margin: null,
     positions_pl_total: null,
+    all_positions: [],
     orders: []
   }
   let logs = []
@@ -60,7 +61,7 @@
       const data = await fetchJson('/api/account')
       account = data
     } catch (e) {
-      account = { wallet_cash: null, wallet_margin: null, positions_pl_total: null, orders: [] }
+      account = { wallet_cash: null, wallet_margin: null, positions_pl_total: null, all_positions: [], orders: [] }
     }
   }
 
@@ -277,9 +278,16 @@
           <strong>{fmtNumber(account.wallet_margin?.MarginAccountWallet)}</strong>
         </div>
         <div class="row">
-          <span>評価損益合計</span>
-          <strong>{fmtNumber(account.positions_pl_total)}</strong>
+          <span>保証金維持率</span>
+          <strong>{account.wallet_margin?.MarginAccountWalletRatio ? account.wallet_margin.MarginAccountWalletRatio + '%' : '-'}</strong>
         </div>
+        <div class="row">
+          <span>評価損益合計</span>
+          <strong class={account.positions_pl_total > 0 ? 'positive' : account.positions_pl_total < 0 ? 'negative' : ''}>{fmtNumber(account.positions_pl_total)}</strong>
+        </div>
+        {#if account.error}
+          <div class="hint" style="color: #ff8f8f;">API未接続: kabusapiを確認</div>
+        {/if}
       </div>
 
       <div class="card">
@@ -313,6 +321,36 @@
           {/each}
         {:else}
           <div class="hint">ポジションなし</div>
+        {/if}
+      </div>
+
+      <div class="card wide">
+        <h3>保有株一覧</h3>
+        {#if account.all_positions && account.all_positions.length}
+          <div class="holdings-table">
+            <div class="holdings-header">
+              <span>銘柄</span>
+              <span>銘柄名</span>
+              <span>売買</span>
+              <span>数量</span>
+              <span>取得単価</span>
+              <span>現在値</span>
+              <span>評価損益</span>
+            </div>
+            {#each account.all_positions as pos}
+              <div class="holdings-row">
+                <span>{pos.Symbol || '-'}</span>
+                <span>{pos.SymbolName || '-'}</span>
+                <span class={pos.Side === '2' ? 'positive' : 'negative'}>{pos.Side === '2' ? '買' : '売'}</span>
+                <span>{fmtNumber(pos.LeavesQty || pos.Qty)}</span>
+                <span>{fmtNumber(pos.Price)}</span>
+                <span>{fmtNumber(pos.CurrentPrice)}</span>
+                <span class={pos.ProfitLoss > 0 ? 'positive' : pos.ProfitLoss < 0 ? 'negative' : ''}>{fmtNumber(pos.ProfitLoss)}</span>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="hint">保有株なし</div>
         {/if}
       </div>
 

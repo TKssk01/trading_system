@@ -13,7 +13,10 @@ from scipy.interpolate import UnivariateSpline
 import logging
 import urllib.request
 import pprint
-import yfinance as yf
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None
 from zoneinfo import ZoneInfo
 try:
     from IPython.display import clear_output, display

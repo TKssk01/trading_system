@@ -6,7 +6,6 @@ import json
 import pprint
 import logging
 import time
-import ccxt
 import os
 import traceback
 import urllib.parse
@@ -508,14 +507,13 @@ class OrderExecutor:
                                     
                                     # RecType=3（期限切れ）の場合
                                     if last_detail.get('RecType') == 3:
-                                        print("\n注文が期限切れになりました")
-                                        print("取引を一時停止します。Enterキーを押して再開...")
-                                        input()  # ユーザーの入力待ち
+                                        self.logger.warning("注文が期限切れになりました。自動で再開します。")
+                                        time.sleep(1)
                                         continue  # ループを継続
                                     else:
-                                        print("決済が完了しました。次のループへ進みます。")
+                                        self.logger.info("決済が完了しました。次のループへ進みます。")
                                         break  # 決済成功時は次のループへ
-                            
+
                             # 買いポジションの決済条件判定
                             elif side == '2':  # 買いポジション
                                 if (price_t2 < price_t1 and price_t0 < price_t1 and price_t2 > buy_price and price_t1 > buy_price and price_t0 > buy_price):
@@ -545,12 +543,11 @@ class OrderExecutor:
                                     last_detail = latest_order_ioc['Details'][-1]
                                     # RecType=3（期限切れ）の場合
                                     if last_detail.get('RecType') == 3:
-                                        print("\n注文が期限切れになりました")
-                                        print("取引を一時停止します。Enterキーを押して再開...")
-                                        input()  # ユーザーの入力待ち
+                                        self.logger.warning("注文が期限切れになりました。自動で再開します。")
+                                        time.sleep(1)
                                         continue  # ループを継続
                                     else:
-                                        print("決済が完了しました。次のループへ進みます。")
+                                        self.logger.info("決済が完了しました。次のループへ進みます。")
                                         break  # 決済成功時は次のループへ
 
                     time.sleep(0.2)  # 短い間隔で価格チェック

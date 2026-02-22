@@ -125,10 +125,11 @@ def account():
     try:
         wallet_cash = client.wallet_cash()
         wallet_margin = client.wallet_margin()
-        positions = client.positions(symbol=symbol)
+        all_positions = client.positions(symbol=None)
+        symbol_positions = [p for p in all_positions if str(p.get('Symbol', '')) == str(symbol)] if symbol else all_positions
         orders = client.orders(symbol=symbol)
         pl_total = 0.0
-        for p in positions:
+        for p in all_positions:
             pl = p.get('ProfitLoss')
             try:
                 pl_total += float(pl)
@@ -137,7 +138,8 @@ def account():
         return {
             "wallet_cash": wallet_cash,
             "wallet_margin": wallet_margin,
-            "positions": positions,
+            "positions": symbol_positions,
+            "all_positions": all_positions,
             "orders": orders,
             "positions_pl_total": pl_total,
         }
