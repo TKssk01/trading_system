@@ -6,6 +6,4 @@ numpy>=1.26.4
 requests==2.32.3
 scipy>=1.11.4
 holidays==0.57
-yfinance==0.2.54
-ccxt==4.4.73
 tzdata==2024.2
