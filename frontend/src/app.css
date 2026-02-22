@@ -270,3 +270,43 @@ button:active {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.04);
 }
+
+.positive {
+  color: #7cf4c0;
+}
+
+.negative {
+  color: #ff8f8f;
+}
+
+.holdings-table {
+  display: grid;
+  gap: 4px;
+}
+
+.holdings-header {
+  display: grid;
+  grid-template-columns: 0.8fr 1.5fr 0.5fr 0.7fr 1fr 1fr 1fr;
+  gap: 8px;
+  font-size: 11px;
+  padding: 8px 10px;
+  color: #8fa3c2;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.holdings-row {
+  display: grid;
+  grid-template-columns: 0.8fr 1.5fr 0.5fr 0.7fr 1fr 1fr 1fr;
+  gap: 8px;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  align-items: center;
+}
+
+.holdings-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
