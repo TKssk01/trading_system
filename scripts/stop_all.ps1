@@ -1,43 +1,43 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Trading System 全サービス停止スクリプト
+    Trading System All Services Stop Script
 
 .DESCRIPTION
-    Trading System に関連する uvicorn/python プロセスを検出して停止します。
+    Detects and stops uvicorn/python processes related to the Trading System.
 
 .EXAMPLE
     .\stop_all.ps1
 
 .EXAMPLE
     .\stop_all.ps1 -Force
-    確認プロンプトなしで強制停止します。
+    Force stop without confirmation prompt.
 #>
 
 [CmdletBinding()]
 param(
-    # 確認プロンプトをスキップ
+    # Skip confirmation prompt
     [switch]$Force
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# --- プロジェクトルートを解決 ---
+# --- Resolve project root ---
 $ProjectRoot = Split-Path (Split-Path $PSScriptRoot)
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host " Trading System - 全サービス停止" -ForegroundColor Cyan
+Write-Host " Trading System - Stopping All Services" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# --- Trading System 関連プロセスを検索 ---
-Write-Host "[情報] Trading System 関連プロセスを検索中..." -ForegroundColor Gray
+# --- Search for Trading System related processes ---
+Write-Host "[INFO] Searching for Trading System related processes..." -ForegroundColor Gray
 
 $targetProcesses = @()
 
-# python / uvicorn プロセスを取得し、コマンドラインで Trading System 関連かを判定
+# Get python / uvicorn processes and determine if they are related to Trading System by command line
 $pythonProcesses = Get-Process -Name "python", "python3", "uvicorn" -ErrorAction SilentlyContinue
 
 foreach ($proc in $pythonProcesses) {
@@ -48,8 +48,8 @@ foreach ($proc in $pythonProcesses) {
         $cmdLine = $cimProc.CommandLine
         if (-not $cmdLine) { continue }
 
-        # uvicorn backend.main:app を含むプロセス、
-        # またはプロジェクトルートパスを含むプロセスを対象とする
+        # Target processes containing uvicorn backend.main:app,
+        # or processes containing the project root path
         $isTarget = $false
 
         if ($cmdLine -match "uvicorn" -and $cmdLine -match "backend\.main") {
@@ -69,91 +69,91 @@ foreach ($proc in $pythonProcesses) {
         }
     }
     catch {
-        # アクセスできないプロセスはスキップ
+        # Skip processes that cannot be accessed
         continue
     }
 }
 
-# --- 結果の表示 ---
+# --- Display results ---
 if ($targetProcesses.Count -eq 0) {
     Write-Host ""
-    Write-Host "[情報] Trading System 関連のプロセスは見つかりませんでした。" -ForegroundColor Green
+    Write-Host "[INFO] No Trading System related processes found." -ForegroundColor Green
     Write-Host ""
     exit 0
 }
 
 Write-Host ""
-Write-Host "[検出] $($targetProcesses.Count) 個の関連プロセスが見つかりました:" -ForegroundColor Yellow
+Write-Host "[FOUND] $($targetProcesses.Count) related process(es) found:" -ForegroundColor Yellow
 Write-Host ""
 
 foreach ($tp in $targetProcesses) {
-    # コマンドラインを短縮して表示
+    # Truncate command line for display
     $shortCmd = $tp.CommandLine
     if ($shortCmd.Length -gt 100) {
         $shortCmd = $shortCmd.Substring(0, 97) + "..."
     }
-    Write-Host "  PID: $($tp.PID)  名前: $($tp.Name)" -ForegroundColor White
-    Write-Host "  コマンド: $shortCmd" -ForegroundColor Gray
+    Write-Host "  PID: $($tp.PID)  Name: $($tp.Name)" -ForegroundColor White
+    Write-Host "  Command: $shortCmd" -ForegroundColor Gray
     Write-Host ""
 }
 
-# --- 停止確認 ---
+# --- Confirm stop ---
 if (-not $Force) {
-    $response = Read-Host "上記のプロセスを停止しますか? (y/N)"
+    $response = Read-Host "Stop the above process(es)? (y/N)"
     if ($response -notin @("y", "Y", "yes", "Yes")) {
-        Write-Host "[情報] 停止をキャンセルしました。" -ForegroundColor Gray
+        Write-Host "[INFO] Stop cancelled." -ForegroundColor Gray
         exit 0
     }
 }
 
-# --- プロセスを停止 ---
+# --- Stop processes ---
 Write-Host ""
 $stoppedCount = 0
 $failedCount = 0
 
 foreach ($tp in $targetProcesses) {
     try {
-        Write-Host "[停止中] PID $($tp.PID) ($($tp.Name))..." -ForegroundColor Yellow -NoNewline
+        Write-Host "[STOPPING] PID $($tp.PID) ($($tp.Name))..." -ForegroundColor Yellow -NoNewline
 
-        # まず graceful に停止を試みる (SIGTERM 相当)
+        # First attempt graceful stop (equivalent to SIGTERM)
         $process = Get-Process -Id $tp.PID -ErrorAction SilentlyContinue
         if ($process) {
             $process.CloseMainWindow() | Out-Null
-            # 3秒待機
+            # Wait 3 seconds
             if (-not $process.WaitForExit(3000)) {
-                # graceful 停止できなかった場合は強制終了
+                # Force kill if graceful stop failed
                 Stop-Process -Id $tp.PID -Force -ErrorAction Stop
             }
         }
 
-        Write-Host " 完了" -ForegroundColor Green
+        Write-Host " Done" -ForegroundColor Green
         $stoppedCount++
     }
     catch {
-        # プロセスが既に終了している場合
+        # Process may have already exited
         if (-not (Get-Process -Id $tp.PID -ErrorAction SilentlyContinue)) {
-            Write-Host " (既に終了)" -ForegroundColor Gray
+            Write-Host " (Already exited)" -ForegroundColor Gray
             $stoppedCount++
         }
         else {
-            Write-Host " 失敗: $_" -ForegroundColor Red
+            Write-Host " Failed: $_" -ForegroundColor Red
             $failedCount++
         }
     }
 }
 
-# --- 完了メッセージ ---
+# --- Completion message ---
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
-Write-Host " 停止完了" -ForegroundColor Green
+Write-Host " Stop Complete" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  停止済み: $stoppedCount プロセス" -ForegroundColor White
+Write-Host "  Stopped: $stoppedCount process(es)" -ForegroundColor White
 
 if ($failedCount -gt 0) {
-    Write-Host "  失敗: $failedCount プロセス" -ForegroundColor Red
+    Write-Host "  Failed:  $failedCount process(es)" -ForegroundColor Red
     Write-Host ""
-    Write-Host "  管理者権限で再実行してください:" -ForegroundColor Yellow
+    Write-Host "  Please re-run with administrator privileges:" -ForegroundColor Yellow
     Write-Host "    Start-Process powershell -Verb RunAs -ArgumentList '-File', '$PSCommandPath', '-Force'" -ForegroundColor Yellow
 }
 

@@ -1,33 +1,33 @@
 @echo off
 chcp 65001 >nul 2>&1
 REM ============================================================
-REM  start_backend.bat - バックエンドサーバー起動スクリプト (Windows)
-REM  trading_system バックエンドを uvicorn で起動します
+REM  start_backend.bat - Backend Server Startup Script (Windows)
+REM  Starts the trading_system backend with uvicorn
 REM ============================================================
 
 setlocal enabledelayedexpansion
 
-REM --- プロジェクトルートを解決 ---
+REM --- Resolve project root ---
 set "SCRIPT_DIR=%~dp0"
-REM 末尾のバックスラッシュを除去
+REM Remove trailing backslash
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 for %%I in ("%SCRIPT_DIR%\..") do set "PROJECT_ROOT=%%~fI"
 
 echo.
 echo ========================================
-echo  Trading System - バックエンド起動
+echo  Trading System - Starting Backend
 echo ========================================
 echo.
-echo [情報] プロジェクトルート: %PROJECT_ROOT%
+echo [INFO] Project root: %PROJECT_ROOT%
 
-REM --- Python 仮想環境の確認 ---
+REM --- Check Python virtual environment ---
 set "VENV_ACTIVATE=%PROJECT_ROOT%\backend\.venv\Scripts\activate.bat"
 
 if not exist "%VENV_ACTIVATE%" (
     echo.
-    echo [エラー] 仮想環境が見つかりません: %VENV_ACTIVATE%
+    echo [ERROR] Virtual environment not found: %VENV_ACTIVATE%
     echo.
-    echo 以下のコマンドで仮想環境を作成してください:
+    echo Please create the virtual environment with the following commands:
     echo   cd "%PROJECT_ROOT%\backend"
     echo   python -m venv .venv
     echo   .venv\Scripts\activate.bat
@@ -37,40 +37,40 @@ if not exist "%VENV_ACTIVATE%" (
     exit /b 1
 )
 
-REM --- .env ファイルの確認 ---
+REM --- Check .env file ---
 if not exist "%PROJECT_ROOT%\backend\.env" (
-    echo [警告] backend\.env ファイルが見つかりません。
-    echo         デフォルト設定で起動します。
-    echo         create_env.ps1 で .env ファイルを作成することを推奨します。
+    echo [WARNING] backend\.env file not found.
+    echo           Starting with default settings.
+    echo           It is recommended to create a .env file using create_env.ps1.
     echo.
 )
 
-REM --- 仮想環境をアクティベート ---
-echo [情報] 仮想環境をアクティベート中...
+REM --- Activate virtual environment ---
+echo [INFO] Activating virtual environment...
 call "%VENV_ACTIVATE%"
 if errorlevel 1 (
-    echo [エラー] 仮想環境のアクティベートに失敗しました。
+    echo [ERROR] Failed to activate virtual environment.
     pause
     exit /b 1
 )
 
-REM --- 作業ディレクトリをプロジェクトルートに設定 ---
+REM --- Set working directory to project root ---
 cd /d "%PROJECT_ROOT%"
-echo [情報] 作業ディレクトリ: %CD%
+echo [INFO] Working directory: %CD%
 
-REM --- uvicorn でバックエンドを起動 ---
+REM --- Start backend with uvicorn ---
 echo.
-echo [情報] uvicorn サーバーを起動します...
-echo [情報] URL: http://localhost:8000
-echo [情報] 停止するには Ctrl+C を押してください
+echo [INFO] Starting uvicorn server...
+echo [INFO] URL: http://localhost:8000
+echo [INFO] Press Ctrl+C to stop
 echo.
 
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 if errorlevel 1 (
     echo.
-    echo [エラー] uvicorn の起動に失敗しました。
-    echo         requirements.txt の依存関係がインストールされているか確認してください:
+    echo [ERROR] Failed to start uvicorn.
+    echo         Please ensure the dependencies in requirements.txt are installed:
     echo           pip install -r backend\requirements.txt
     echo.
     pause
