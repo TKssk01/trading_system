@@ -4,11 +4,13 @@
   export let running = false
   export let busy = false
   export let secretsMessage = ''
+  export let scheduledTime = null
 
   export let symbolInput = ''
   export let quantityInput = ''
   export let apiPassword = ''
   export let orderPassword = ''
+  export let scheduleTimeInput = '09:00'
 
   const dispatch = createEventDispatcher()
 </script>
@@ -36,6 +38,21 @@
         <button class="btn-primary" on:click={() => dispatch('start')} disabled={busy}>開始</button>
       {/if}
       <button class="btn-danger" on:click={() => dispatch('forceClose')} disabled={busy}>強制決済</button>
+
+      <div class="schedule-section">
+        <label for="scheduleTime">予約開始</label>
+        {#if scheduledTime}
+          <div class="schedule-active">
+            <span class="schedule-badge">{scheduledTime} に開始予定</span>
+            <button class="btn-cancel" on:click={() => dispatch('cancelSchedule')} disabled={busy}>取消</button>
+          </div>
+        {:else}
+          <div class="schedule-row">
+            <input id="scheduleTime" type="time" bind:value={scheduleTimeInput} />
+            <button class="btn-schedule" on:click={() => dispatch('scheduleStart', { time: scheduleTimeInput })} disabled={busy || running}>予約</button>
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
 
@@ -125,5 +142,53 @@
     font-size: 12px;
     color: var(--text-2);
     margin-top: 4px;
+  }
+
+  .schedule-section {
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .schedule-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .schedule-row input[type="time"] {
+    font-size: 14px;
+    padding: 6px 8px;
+  }
+
+  .btn-schedule {
+    background: var(--accent-glow);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    white-space: nowrap;
+  }
+
+  .schedule-active {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .schedule-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-glow);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    flex: 1;
+  }
+  .btn-cancel {
+    background: var(--bg-2);
+    color: var(--text-2);
+    font-size: 11px;
+    padding: 4px 10px;
   }
 </style>

@@ -36,6 +36,8 @@
   let apiPassword = ''
   let orderPassword = ''
   let secretsMessage = ''
+  let scheduledTime = null
+  let scheduleTimeInput = '09:00'
 
   async function refreshHealth() {
     try { await api.getHealth(); backendOk = true }
@@ -105,6 +107,29 @@
     try { await api.postForceClose(); await refreshStatus(); await refreshAccount() }
     finally { busy = false }
   }
+  async function scheduleStart(e) {
+    busy = true
+    try {
+      const time = e.detail.time
+      await api.postConfig(symbolInput, quantityInput)
+      const res = await api.postScheduleStart(time)
+      if (res.ok) scheduledTime = res.scheduled_time || time
+    } finally { busy = false }
+  }
+  async function cancelSchedule() {
+    busy = true
+    try {
+      await api.postCancelSchedule()
+      scheduledTime = null
+    } finally { busy = false }
+  }
+  async function refreshSchedule() {
+    try {
+      const data = await api.getSchedule()
+      scheduledTime = data.scheduled_time
+    } catch { /* keep previous */ }
+  }
+
   async function applySecrets() {
     busy = true
     try {
@@ -125,7 +150,7 @@
   }
 
   onMount(() => {
-    refreshHealth(); refreshStatus(); refreshAccount(); refreshBoard(); refreshIndices(); refreshWatchlist(); refreshLogs()
+    refreshHealth(); refreshStatus(); refreshAccount(); refreshBoard(); refreshIndices(); refreshWatchlist(); refreshSchedule(); refreshLogs()
     const t1 = setInterval(refreshHealth, 3000)
     const t2 = setInterval(refreshStatus, 1000)
     const t3 = setInterval(refreshAccount, 5000)
@@ -139,10 +164,11 @@
 
 <div class="app-shell">
   <Sidebar
-    running={status.running} {busy} {secretsMessage}
-    bind:symbolInput bind:quantityInput bind:apiPassword bind:orderPassword
+    running={status.running} {busy} {secretsMessage} {scheduledTime}
+    bind:symbolInput bind:quantityInput bind:apiPassword bind:orderPassword bind:scheduleTimeInput
     on:start={start} on:stop={stop} on:forceClose={forceClose}
     on:updateConfig={updateConfig} on:applySecrets={applySecrets} on:saveSecrets={saveSecrets}
+    on:scheduleStart={scheduleStart} on:cancelSchedule={cancelSchedule}
   />
 
   <div class="main-area">

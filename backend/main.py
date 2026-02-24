@@ -1,6 +1,9 @@
 import logging
+import threading
+import datetime as dt
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,6 +52,14 @@ class SecretsUpdate(BaseModel):
     order_password: Optional[str] = None
     save: bool = False
 
+class ScheduleStart(BaseModel):
+    time: str  # "HH:MM" format in JST
+
+# Scheduled start state
+_scheduled_time: Optional[str] = None
+_schedule_timer: Optional[threading.Timer] = None
+_schedule_lock = threading.Lock()
+
 @app.get("/api/health")
 def health():
     return {"ok": True}
@@ -74,6 +85,54 @@ def stop():
 @app.post("/api/force_close")
 def force_close():
     return runner.force_close()
+
+@app.post("/api/schedule_start")
+def schedule_start(payload: ScheduleStart):
+    global _scheduled_time, _schedule_timer
+    with _schedule_lock:
+        # Cancel existing schedule
+        if _schedule_timer:
+            _schedule_timer.cancel()
+            _schedule_timer = None
+            _scheduled_time = None
+
+        try:
+            hh, mm = payload.time.split(":")
+            now = dt.datetime.now(ZoneInfo("Asia/Tokyo"))
+            target = now.replace(hour=int(hh), minute=int(mm), second=0, microsecond=0)
+            if target <= now:
+                return {"ok": False, "message": f"{payload.time} is already past"}
+            delay = (target - now).total_seconds()
+            _scheduled_time = payload.time
+
+            def _do_start():
+                global _scheduled_time
+                logger.info("Scheduled start triggered at %s", payload.time)
+                runner.start()
+                _scheduled_time = None
+
+            _schedule_timer = threading.Timer(delay, _do_start)
+            _schedule_timer.daemon = True
+            _schedule_timer.start()
+            logger.info("Scheduled start at %s (%.0f seconds from now)", payload.time, delay)
+            return {"ok": True, "scheduled_time": payload.time, "delay_seconds": int(delay)}
+        except Exception as e:
+            return {"ok": False, "message": str(e)}
+
+@app.post("/api/cancel_schedule")
+def cancel_schedule():
+    global _scheduled_time, _schedule_timer
+    with _schedule_lock:
+        if _schedule_timer:
+            _schedule_timer.cancel()
+            _schedule_timer = None
+            _scheduled_time = None
+            return {"ok": True, "message": "Schedule cancelled"}
+        return {"ok": False, "message": "No schedule active"}
+
+@app.get("/api/schedule")
+def get_schedule():
+    return {"scheduled_time": _scheduled_time}
 
 @app.post("/api/config")
 def update_config(payload: ConfigUpdate):

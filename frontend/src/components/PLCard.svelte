@@ -35,6 +35,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 20px;
+    min-height: 200px;
     transition: border-color 0.15s ease;
   }
   .card:hover { border-color: var(--border-hover); }

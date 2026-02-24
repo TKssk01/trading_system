@@ -26,6 +26,22 @@ export async function postStart() {
   return fetchJson(`${API_BASE}/start`, { method: 'POST' })
 }
 
+export async function postScheduleStart(time) {
+  return fetchJson(`${API_BASE}/schedule_start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ time })
+  })
+}
+
+export async function postCancelSchedule() {
+  return fetchJson(`${API_BASE}/cancel_schedule`, { method: 'POST' })
+}
+
+export async function getSchedule() {
+  return fetchJson(`${API_BASE}/schedule`)
+}
+
 export async function postStop() {
   return fetchJson(`${API_BASE}/stop`, { method: 'POST' })
 }
