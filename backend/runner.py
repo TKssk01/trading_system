@@ -20,8 +20,10 @@ from post_order_processor import PostOrderProcessor
 
 try:
     from .config import Settings
+    from .kabus_client import KabuClient
 except ImportError:
     from config import Settings
+    from kabus_client import KabuClient
 
 @dataclass
 class RunnerState:
@@ -35,9 +37,10 @@ class RunnerState:
     mode: str = "daytrade"
 
 class TradingRunner:
-    def __init__(self, settings: Settings, logger: logging.Logger):
+    def __init__(self, settings: Settings, logger: logging.Logger, kabu_client: KabuClient = None):
         self.settings = settings
         self.logger = logger
+        self._kabu_client = kabu_client
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -111,7 +114,10 @@ class TradingRunner:
 
             self._init.logger = self.logger
 
-            token = get_token(self.settings.api_password)
+            if self._kabu_client:
+                token = self._kabu_client._get_token()
+            else:
+                token = get_token(self.settings.api_password)
             if not token:
                 raise RuntimeError("failed to get API token")
             self._init.token = token
@@ -175,18 +181,28 @@ class TradingRunner:
             with self._lock:
                 self._state.running = False
 
+    @staticmethod
+    def _safe_int(value):
+        import math
+        try:
+            if value is None or (isinstance(value, float) and math.isnan(value)):
+                return 0
+            return int(value)
+        except (ValueError, TypeError):
+            return 0
+
     def _capture_last_signal(self) -> None:
         try:
             if self._init is None or self._init.interpolated_data.empty:
                 return
             last_row = self._init.interpolated_data.iloc[-1]
             signals = {
-                "buy": int(last_row.get('buy_signals', 0) or 0),
-                "sell": int(last_row.get('sell_signals', 0) or 0),
-                "buy_exit": int(last_row.get('buy_exit_signals', 0) or 0),
-                "sell_exit": int(last_row.get('sell_exit_signals', 0) or 0),
-                "emergency_buy_exit": int(last_row.get('emergency_buy_exit_signals', 0) or 0),
-                "emergency_sell_exit": int(last_row.get('emergency_sell_exit_signals', 0) or 0),
+                "buy": self._safe_int(last_row.get('buy_signals', 0)),
+                "sell": self._safe_int(last_row.get('sell_signals', 0)),
+                "buy_exit": self._safe_int(last_row.get('buy_exit_signals', 0)),
+                "sell_exit": self._safe_int(last_row.get('sell_exit_signals', 0)),
+                "emergency_buy_exit": self._safe_int(last_row.get('emergency_buy_exit_signals', 0)),
+                "emergency_sell_exit": self._safe_int(last_row.get('emergency_sell_exit_signals', 0)),
             }
             with self._lock:
                 self._state.last_signal = signals

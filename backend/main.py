@@ -37,8 +37,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-runner = TradingRunner(settings, logger)
 client = KabuClient(settings)
+runner = TradingRunner(settings, logger, kabu_client=client)
 
 class ConfigUpdate(BaseModel):
     symbol: Optional[str] = None
@@ -118,6 +118,99 @@ def update_secrets(payload: SecretsUpdate):
         except Exception:
             pass
     return {"ok": True, "updated": updated, "saved": payload.save}
+
+@app.get("/api/indices")
+def indices():
+    codes = [("101", "日経平均"), ("151", "TOPIX")]
+    results = []
+    for code, name in codes:
+        try:
+            data = client.board(code)
+            results.append({
+                "code": code,
+                "name": name,
+                "price": data.get("CurrentPrice"),
+                "change": data.get("ChangePreviousClose"),
+                "change_pct": data.get("ChangePreviousClosePer"),
+            })
+        except Exception:
+            results.append({"code": code, "name": name, "price": None, "change": None, "change_pct": None})
+    # USD/JPY
+    try:
+        fx = client.exchange_rate("USD/JPY")
+        results.append({
+            "code": "FX",
+            "name": "USD/JPY",
+            "price": fx.get("BidPrice"),
+            "change": fx.get("Change"),
+            "change_pct": None,
+        })
+    except Exception:
+        results.append({"code": "FX", "name": "USD/JPY", "price": None, "change": None, "change_pct": None})
+    return results
+
+WATCHLIST_CODES = [
+    ("8306", "三菱UFJ"), ("9433", "KDDI"), ("8058", "三菱商"),
+    ("8604", "野村"), ("9501", "東電HD"), ("7261", "マツダ"),
+    ("5401", "日本製鉄"), ("9104", "商船三井"), ("6501", "日立"),
+    ("9101", "郵船"), ("7012", "川重"), ("7011", "三菱重"),
+    ("6702", "富士通"), ("7201", "日産自"),
+]
+
+@app.get("/api/watchlist")
+def watchlist():
+    results = []
+    for code, name in WATCHLIST_CODES:
+        try:
+            data = client.board(code)
+            results.append({
+                "code": code,
+                "name": name,
+                "price": data.get("CurrentPrice"),
+                "change": data.get("ChangePreviousClose"),
+                "change_pct": data.get("ChangePreviousClosePer"),
+                "volume": data.get("TradingVolume"),
+                "previous_close": data.get("PreviousClose"),
+            })
+        except Exception:
+            results.append({"code": code, "name": name, "price": None, "change": None, "change_pct": None, "volume": None, "previous_close": None})
+    return results
+
+@app.get("/api/symbol/{code}")
+def symbol_info(code: str):
+    try:
+        data = client.symbol_info(code)
+        return {
+            "symbol": data.get("Symbol"),
+            "symbol_name": data.get("SymbolName"),
+            "display_name": data.get("DisplayName"),
+            "exchange": data.get("ExchangeName"),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/board/{code}")
+def board(code: str):
+    try:
+        data = client.board(code)
+        return {
+            "current_price": data.get("CurrentPrice"),
+            "current_price_time": data.get("CurrentPriceTime"),
+            "previous_close": data.get("PreviousClose"),
+            "change": data.get("ChangePreviousClose"),
+            "change_pct": data.get("ChangePreviousClosePer"),
+            "opening_price": data.get("OpeningPrice"),
+            "high_price": data.get("HighPrice"),
+            "low_price": data.get("LowPrice"),
+            "trading_volume": data.get("TradingVolume"),
+            "vwap": data.get("VWAP"),
+            "bid_price": data.get("BidPrice"),
+            "bid_qty": data.get("BidQty"),
+            "ask_price": data.get("AskPrice"),
+            "ask_qty": data.get("AskQty"),
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/api/account")
 def account():

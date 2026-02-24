@@ -59,3 +59,12 @@ class KabuClient:
             params["symbol"] = symbol
         data = self._request("GET", "/orders", params=params)
         return data if isinstance(data, list) else []
+
+    def symbol_info(self, symbol: str, exchange: int = 1) -> Dict[str, Any]:
+        return self._request("GET", f"/symbol/{symbol}@{exchange}")
+
+    def board(self, symbol: str, exchange: int = 1) -> Dict[str, Any]:
+        return self._request("GET", f"/board/{symbol}@{exchange}")
+
+    def exchange_rate(self, symbol: str = "USD/JPY") -> Dict[str, Any]:
+        return self._request("GET", f"/exchange/{symbol}")
