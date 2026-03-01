@@ -3,6 +3,9 @@
 backend/.venv/
 frontend/node_modules/
 backend/.env
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
 .claude/
 frontend/.vite/
 frontend/dist/
