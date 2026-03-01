@@ -101,3 +101,40 @@ export async function getTradeDaily(days = 30) {
 export async function getTradeStats(days = 30) {
   return fetchJson(`${API_BASE}/trade-history/stats?days=${days}`)
 }
+
+export async function getStrategy() {
+  return fetchJson(`${API_BASE}/strategy`)
+}
+
+export async function postStrategy(params) {
+  return fetchJson(`${API_BASE}/strategy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params)
+  })
+}
+
+export async function postTestNotification() {
+  return fetchJson(`${API_BASE}/test-notification`, { method: 'POST' })
+}
+
+export async function getMarginHistory(days = 30) {
+  return fetchJson(`${API_BASE}/margin-history?days=${days}`)
+}
+
+export async function getTrades(limit = 50, symbol) {
+  const q = symbol ? `&symbol=${symbol}` : ''
+  return fetchJson(`${API_BASE}/trades?limit=${limit}${q}`)
+}
+
+export async function getTradeSummary(days = 30) {
+  return fetchJson(`${API_BASE}/trades/summary?days=${days}`)
+}
+
+export async function getMarginDaily(days = 30) {
+  return fetchJson(`${API_BASE}/margin-daily?days=${days}`)
+}
+
+export async function postImportTrades() {
+  return fetchJson(`${API_BASE}/trades/import`, { method: 'POST' })
+}

@@ -53,8 +53,8 @@ class KabuClient:
         data = self._request("GET", "/positions", params=params)
         return data if isinstance(data, list) else []
 
-    def orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
-        params = {"product": "2", "details": "false"}
+    def orders(self, symbol: Optional[str] = None, details: bool = False) -> List[Dict[str, Any]]:
+        params = {"product": "2", "details": "true" if details else "false"}
         if symbol:
             params["symbol"] = symbol
         data = self._request("GET", "/orders", params=params)

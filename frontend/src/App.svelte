@@ -13,6 +13,7 @@
   import WatchlistCard from './components/WatchlistCard.svelte'
   import ErrorBanner from './components/ErrorBanner.svelte'
   import TradeHistoryCard from './components/TradeHistoryCard.svelte'
+  import AccountCard from './components/AccountCard.svelte'
 
   let status = {
     running: false, symbol: '', quantity: 0,
@@ -38,6 +39,11 @@
   let tradeTimeline = []
   let tradeDailyPl = []
   let tradeStats = {}
+  let strategy = {}
+  let executedTrades = []
+  let tradeSummary = {}
+  let marginDaily = []
+  let marginChange = null
 
   async function refreshHealth() {
     try { await api.getHealth(); backendOk = true }
@@ -84,6 +90,23 @@
     try { tradeTimeline = await api.getTradeTimeline() } catch { /* keep previous */ }
     try { tradeDailyPl = await api.getTradeDaily() } catch { /* keep previous */ }
     try { tradeStats = await api.getTradeStats() } catch { /* keep previous */ }
+  }
+  async function refreshStrategy() {
+    try { strategy = await api.getStrategy() } catch { /* keep previous */ }
+  }
+  async function refreshExecutedTrades() {
+    try { await api.postImportTrades() } catch { /* ignore import errors */ }
+    try { executedTrades = await api.getTrades() } catch { /* keep previous */ }
+    try { tradeSummary = await api.getTradeSummary() } catch { /* keep previous */ }
+  }
+  async function refreshMarginDaily() {
+    try {
+      marginDaily = await api.getMarginDaily(7)
+      if (marginDaily.length > 0) {
+        const latest = marginDaily[marginDaily.length - 1]
+        marginChange = latest.margin_change
+      }
+    } catch { /* keep previous */ }
   }
 
   async function updateConfig() {
@@ -134,9 +157,21 @@
       scheduledTime = data.scheduled_time
     } catch { /* keep previous */ }
   }
+  async function updateStrategy(e) {
+    busy = true
+    try {
+      await api.postStrategy(e.detail)
+      await refreshStrategy()
+    } finally { busy = false }
+  }
+  async function testNotification() {
+    busy = true
+    try { await api.postTestNotification() }
+    finally { busy = false }
+  }
 
   onMount(() => {
-    refreshHealth(); refreshStatus(); refreshAccount(); refreshBoard(); refreshIndices(); refreshWatchlist(); refreshSchedule(); refreshLogs(); refreshTradeHistory()
+    refreshHealth(); refreshStatus(); refreshAccount(); refreshBoard(); refreshIndices(); refreshWatchlist(); refreshSchedule(); refreshLogs(); refreshTradeHistory(); refreshStrategy(); refreshExecutedTrades(); refreshMarginDaily()
     const t1 = setInterval(refreshHealth, 3000)
     const t2 = setInterval(refreshStatus, 1000)
     const t3 = setInterval(refreshAccount, 5000)
@@ -145,17 +180,20 @@
     const t6 = setInterval(refreshWatchlist, 15000)
     const t7 = setInterval(refreshLogs, 2000)
     const t8 = setInterval(refreshTradeHistory, 30000)
-    return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); clearInterval(t4); clearInterval(t5); clearInterval(t6); clearInterval(t7); clearInterval(t8) }
+    const t9 = setInterval(refreshExecutedTrades, 15000)
+    const t10 = setInterval(refreshMarginDaily, 60000)
+    return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); clearInterval(t4); clearInterval(t5); clearInterval(t6); clearInterval(t7); clearInterval(t8); clearInterval(t9); clearInterval(t10) }
   })
 </script>
 
 <div class="app-shell">
   <Sidebar
-    running={status.running} {busy} {scheduledTime}
+    running={status.running} {busy} {scheduledTime} {strategy}
     bind:symbolInput bind:quantityInput bind:scheduleTimeInput
     on:start={start} on:stop={stop} on:forceClose={forceClose}
     on:updateConfig={updateConfig}
     on:scheduleStart={scheduleStart} on:cancelSchedule={cancelSchedule}
+    on:updateStrategy={updateStrategy} on:testNotification={testNotification}
   />
 
   <div class="main-area">
@@ -179,6 +217,14 @@
           walletCash={account.wallet_cash}
           walletMargin={account.wallet_margin}
         />
+        <AccountCard
+          walletCash={account.wallet_cash}
+          walletMargin={account.wallet_margin}
+          {marginChange}
+        />
+      </section>
+
+      <section class="positions-zone">
         <PositionsCard
           positions={account.positions || account.all_positions || []}
           symbol={status.symbol}
@@ -195,7 +241,7 @@
       <WatchlistCard {watchlist} />
 
       <section class="bottom-zone">
-        <OrdersTable orders={account.orders || []} symbol={status.symbol} />
+        <OrdersTable trades={executedTrades} summary={tradeSummary} />
         <LogPanel {logs} />
       </section>
     </main>

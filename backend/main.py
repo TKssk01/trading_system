@@ -16,13 +16,15 @@ try:
     from .log_buffer import MemoryLogHandler
     from .runner import TradingRunner
     from .kabus_client import KabuClient
-    from .trade_history import init_db, record_pl_snapshot, get_orders as get_trade_orders, get_daily_pl, get_pl_timeline, get_trade_stats
+    from .notifier import GmailNotifier
+    from .trade_history import init_db, record_pl_snapshot, get_orders as get_trade_orders, get_daily_pl, get_pl_timeline, get_trade_stats, get_trades, get_trade_summary, get_margin_daily, import_trades_from_api
 except ImportError:
     from config import settings
     from log_buffer import MemoryLogHandler
     from runner import TradingRunner
     from kabus_client import KabuClient
-    from trade_history import init_db, record_pl_snapshot, get_orders as get_trade_orders, get_daily_pl, get_pl_timeline, get_trade_stats
+    from notifier import GmailNotifier
+    from trade_history import init_db, record_pl_snapshot, get_orders as get_trade_orders, get_daily_pl, get_pl_timeline, get_trade_stats, get_trades, get_trade_summary, get_margin_daily, import_trades_from_api
 
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 
@@ -48,15 +50,18 @@ runner = TradingRunner(settings, logger, kabu_client=client)
 # Initialize trade history DB
 init_db()
 
-# Periodic P&L snapshot recorder
+# Periodic P&L snapshot recorder (always active during market hours)
 def _pl_snapshot_loop():
     import time as _time
     while True:
         _time.sleep(30)  # every 30 seconds
         try:
-            state = runner.get_state()
-            if not state.get("running"):
+            now = dt.datetime.now(ZoneInfo("Asia/Tokyo"))
+            hour = now.hour
+            # Skip only deep night hours (0:00-6:59) when market is fully closed
+            if hour < 7:
                 continue
+            state = runner.get_state()
             symbol = state.get("symbol")
             positions = client.positions(symbol=symbol)
             pl_total = sum(float(p.get("ProfitLoss", 0)) for p in positions)
@@ -85,6 +90,19 @@ class SecretsUpdate(BaseModel):
     api_password: Optional[str] = None
     order_password: Optional[str] = None
     save: bool = False
+
+class StrategyUpdate(BaseModel):
+    stop_loss_pct: Optional[float] = None
+    hedge_trigger_pct: Optional[float] = None
+    hedge_after_candles: Optional[int] = None
+    emergency_after_candles: Optional[int] = None
+    max_daily_loss: Optional[float] = None
+    bb_window: Optional[int] = None
+    bb_std: Optional[float] = None
+    macd_short: Optional[int] = None
+    macd_long: Optional[int] = None
+    macd_signal: Optional[int] = None
+    dmi_window: Optional[int] = None
 
 class ScheduleStart(BaseModel):
     time: str  # "HH:MM" format in JST
@@ -346,6 +364,81 @@ def trade_history_timeline(date: Optional[str] = None):
 @app.get("/api/trade-history/stats")
 def trade_history_stats(days: int = 30):
     return get_trade_stats(days=days)
+
+# Executed trades endpoints
+@app.get("/api/trades")
+def trades_list(limit: int = 50, symbol: Optional[str] = None):
+    return get_trades(limit=limit, symbol=symbol)
+
+@app.get("/api/trades/summary")
+def trades_summary(days: int = 30):
+    return get_trade_summary(days=days)
+
+@app.get("/api/margin-daily")
+def margin_daily(days: int = 30):
+    return get_margin_daily(days=days)
+
+@app.post("/api/trades/import")
+def trades_import():
+    try:
+        api_orders = client.orders(details=True)
+        count = import_trades_from_api(api_orders)
+        return {"ok": True, "imported": count}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+# Strategy parameters API
+STRATEGY_FIELDS = [
+    "stop_loss_pct", "hedge_trigger_pct", "hedge_after_candles",
+    "emergency_after_candles", "max_daily_loss", "bb_window", "bb_std",
+    "macd_short", "macd_long", "macd_signal", "dmi_window",
+]
+
+@app.get("/api/strategy")
+def get_strategy():
+    return {f: getattr(settings, f) for f in STRATEGY_FIELDS}
+
+@app.post("/api/strategy")
+def update_strategy(payload: StrategyUpdate):
+    updated = {}
+    for field in STRATEGY_FIELDS:
+        value = getattr(payload, field, None)
+        if value is not None:
+            setattr(settings, field, value)
+            updated[field] = value
+    # Sync to runner's init if running
+    if runner._init is not None:
+        for field in updated:
+            if hasattr(runner._init, field):
+                setattr(runner._init, field, updated[field])
+    return {"ok": True, "updated": updated}
+
+# Notification API
+@app.post("/api/test-notification")
+def test_notification():
+    runner.notifier.send("テスト通知", "Sphere通知テストです。このメールが届いていれば設定は正常です。")
+    return {"ok": True}
+
+@app.get("/api/notification-settings")
+def get_notification_settings():
+    return {
+        "enabled": settings.notify_enabled,
+        "gmail_user": settings.gmail_user,
+        "has_app_password": bool(settings.gmail_app_password),
+    }
+
+# Margin history API
+@app.get("/api/margin-history")
+def margin_history(days: int = 30):
+    daily = get_daily_pl(days=days)
+    return [
+        {
+            "date": d["date"],
+            "wallet_margin": d.get("wallet_margin"),
+            "wallet_cash": d.get("wallet_cash"),
+        }
+        for d in daily
+    ]
 
 # Serve built frontend if available
 frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"

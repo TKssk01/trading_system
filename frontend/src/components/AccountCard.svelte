@@ -1,8 +1,9 @@
 <script>
-  import { fmtNumber } from '../lib/format.js'
+  import { fmtNumber, fmtPL, plClass } from '../lib/format.js'
 
   export let walletCash = null
   export let walletMargin = null
+  export let marginChange = null
 
   $: cashAmount = walletCash?.StockAccountWallet ?? null
   $: marginAmount = walletMargin?.MarginAccountWallet ?? null
@@ -17,6 +18,11 @@
   <div class="account-item">
     <span class="account-label">信用新規可能額</span>
     <span class="account-value tabular">{fmtNumber(marginAmount)}</span>
+    {#if marginChange != null}
+      <span class="margin-change {plClass(marginChange)}">
+        前日比 {fmtPL(marginChange)}円
+      </span>
+    {/if}
   </div>
 </div>
 
@@ -53,4 +59,15 @@
     color: var(--text-1);
     font-variant-numeric: tabular-nums;
   }
+
+  .margin-change {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .margin-change.profit { color: var(--profit); }
+  .margin-change.loss { color: var(--sell); }
+  .margin-change.neutral { color: var(--text-3); }
 </style>
