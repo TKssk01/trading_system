@@ -6,13 +6,13 @@
   import PLCard from './components/PLCard.svelte'
   import PositionsCard from './components/PositionsCard.svelte'
   import SignalPanel from './components/SignalPanel.svelte'
-  import AccountCard from './components/AccountCard.svelte'
   import PriceCard from './components/PriceCard.svelte'
   import OrdersTable from './components/OrdersTable.svelte'
   import LogPanel from './components/LogPanel.svelte'
   import MarketTicker from './components/MarketTicker.svelte'
   import WatchlistCard from './components/WatchlistCard.svelte'
   import ErrorBanner from './components/ErrorBanner.svelte'
+  import TradeHistoryCard from './components/TradeHistoryCard.svelte'
 
   let status = {
     running: false, symbol: '', quantity: 0,
@@ -33,11 +33,11 @@
   let watchlist = []
   let symbolInput = ''
   let quantityInput = ''
-  let apiPassword = ''
-  let orderPassword = ''
-  let secretsMessage = ''
   let scheduledTime = null
   let scheduleTimeInput = '09:00'
+  let tradeTimeline = []
+  let tradeDailyPl = []
+  let tradeStats = {}
 
   async function refreshHealth() {
     try { await api.getHealth(); backendOk = true }
@@ -79,6 +79,11 @@
   async function refreshLogs() {
     try { const data = await api.getLogs(); logs = data.logs || [] }
     catch { /* keep previous */ }
+  }
+  async function refreshTradeHistory() {
+    try { tradeTimeline = await api.getTradeTimeline() } catch { /* keep previous */ }
+    try { tradeDailyPl = await api.getTradeDaily() } catch { /* keep previous */ }
+    try { tradeStats = await api.getTradeStats() } catch { /* keep previous */ }
   }
 
   async function updateConfig() {
@@ -130,27 +135,8 @@
     } catch { /* keep previous */ }
   }
 
-  async function applySecrets() {
-    busy = true
-    try {
-      await api.postSecrets(apiPassword, orderPassword, false)
-      secretsMessage = '一時適用しました'
-      await refreshAccount()
-    } catch { secretsMessage = '適用に失敗しました' }
-    finally { busy = false }
-  }
-  async function saveSecrets() {
-    busy = true
-    try {
-      await api.postSecrets(apiPassword, orderPassword, true)
-      secretsMessage = '.envに保存しました'
-      await refreshAccount()
-    } catch { secretsMessage = '保存に失敗しました' }
-    finally { busy = false }
-  }
-
   onMount(() => {
-    refreshHealth(); refreshStatus(); refreshAccount(); refreshBoard(); refreshIndices(); refreshWatchlist(); refreshSchedule(); refreshLogs()
+    refreshHealth(); refreshStatus(); refreshAccount(); refreshBoard(); refreshIndices(); refreshWatchlist(); refreshSchedule(); refreshLogs(); refreshTradeHistory()
     const t1 = setInterval(refreshHealth, 3000)
     const t2 = setInterval(refreshStatus, 1000)
     const t3 = setInterval(refreshAccount, 5000)
@@ -158,16 +144,17 @@
     const t5 = setInterval(refreshIndices, 10000)
     const t6 = setInterval(refreshWatchlist, 15000)
     const t7 = setInterval(refreshLogs, 2000)
-    return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); clearInterval(t4); clearInterval(t5); clearInterval(t6); clearInterval(t7) }
+    const t8 = setInterval(refreshTradeHistory, 30000)
+    return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); clearInterval(t4); clearInterval(t5); clearInterval(t6); clearInterval(t7); clearInterval(t8) }
   })
 </script>
 
 <div class="app-shell">
   <Sidebar
-    running={status.running} {busy} {secretsMessage} {scheduledTime}
-    bind:symbolInput bind:quantityInput bind:apiPassword bind:orderPassword bind:scheduleTimeInput
+    running={status.running} {busy} {scheduledTime}
+    bind:symbolInput bind:quantityInput bind:scheduleTimeInput
     on:start={start} on:stop={stop} on:forceClose={forceClose}
-    on:updateConfig={updateConfig} on:applySecrets={applySecrets} on:saveSecrets={saveSecrets}
+    on:updateConfig={updateConfig}
     on:scheduleStart={scheduleStart} on:cancelSchedule={cancelSchedule}
   />
 
@@ -202,6 +189,8 @@
         <PriceCard {board} />
         <SignalPanel lastSignal={status.last_signal} />
       </section>
+
+      <TradeHistoryCard timeline={tradeTimeline} dailyPl={tradeDailyPl} stats={tradeStats} />
 
       <WatchlistCard {watchlist} />
 

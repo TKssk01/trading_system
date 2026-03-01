@@ -88,3 +88,16 @@ export async function postSecrets(apiPassword, orderPassword, save) {
     })
   })
 }
+
+export async function getTradeTimeline(date) {
+  const q = date ? `?date=${date}` : ''
+  return fetchJson(`${API_BASE}/trade-history/timeline${q}`)
+}
+
+export async function getTradeDaily(days = 30) {
+  return fetchJson(`${API_BASE}/trade-history/daily?days=${days}`)
+}
+
+export async function getTradeStats(days = 30) {
+  return fetchJson(`${API_BASE}/trade-history/stats?days=${days}`)
+}

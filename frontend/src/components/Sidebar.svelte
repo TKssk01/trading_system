@@ -3,13 +3,10 @@
 
   export let running = false
   export let busy = false
-  export let secretsMessage = ''
   export let scheduledTime = null
 
   export let symbolInput = ''
   export let quantityInput = ''
-  export let apiPassword = ''
-  export let orderPassword = ''
   export let scheduleTimeInput = '09:00'
 
   const dispatch = createEventDispatcher()
@@ -53,21 +50,6 @@
           </div>
         {/if}
       </div>
-    </div>
-  </div>
-
-  <div class="nav-block">
-    <div class="nav-title">認証情報</div>
-    <div class="controls">
-      <label for="apiPw">APIパスワード</label>
-      <input id="apiPw" bind:value={apiPassword} type="password" placeholder="API Password" />
-      <label for="orderPw">注文パスワード</label>
-      <input id="orderPw" bind:value={orderPassword} type="password" placeholder="Order Password" />
-      <button class="btn-secondary" on:click={() => dispatch('applySecrets')} disabled={busy}>一時適用</button>
-      <button class="btn-primary" on:click={() => dispatch('saveSecrets')} disabled={busy}>.envに保存</button>
-      {#if secretsMessage}
-        <div class="hint">{secretsMessage}</div>
-      {/if}
     </div>
   </div>
 </aside>
@@ -136,12 +118,6 @@
   .btn-danger {
     background: var(--loss);
     color: #fff;
-  }
-
-  .hint {
-    font-size: 12px;
-    color: var(--text-2);
-    margin-top: 4px;
   }
 
   .schedule-section {

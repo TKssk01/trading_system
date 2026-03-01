@@ -16,11 +16,13 @@ try:
     from .log_buffer import MemoryLogHandler
     from .runner import TradingRunner
     from .kabus_client import KabuClient
+    from .trade_history import init_db, record_pl_snapshot, get_orders as get_trade_orders, get_daily_pl, get_pl_timeline, get_trade_stats
 except ImportError:
     from config import settings
     from log_buffer import MemoryLogHandler
     from runner import TradingRunner
     from kabus_client import KabuClient
+    from trade_history import init_db, record_pl_snapshot, get_orders as get_trade_orders, get_daily_pl, get_pl_timeline, get_trade_stats
 
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 
@@ -42,6 +44,38 @@ app.add_middleware(
 
 client = KabuClient(settings)
 runner = TradingRunner(settings, logger, kabu_client=client)
+
+# Initialize trade history DB
+init_db()
+
+# Periodic P&L snapshot recorder
+def _pl_snapshot_loop():
+    import time as _time
+    while True:
+        _time.sleep(30)  # every 30 seconds
+        try:
+            state = runner.get_state()
+            if not state.get("running"):
+                continue
+            symbol = state.get("symbol")
+            positions = client.positions(symbol=symbol)
+            pl_total = sum(float(p.get("ProfitLoss", 0)) for p in positions)
+            try:
+                wc = client.wallet_cash()
+                cash = wc.get("StockAccountWallet")
+            except Exception:
+                cash = None
+            try:
+                wm = client.wallet_margin()
+                margin = wm.get("MarginAccountWallet")
+            except Exception:
+                margin = None
+            record_pl_snapshot(symbol, pl_total, cash, margin, len(positions))
+        except Exception:
+            pass
+
+_pl_thread = threading.Thread(target=_pl_snapshot_loop, name="pl-snapshot", daemon=True)
+_pl_thread.start()
 
 class ConfigUpdate(BaseModel):
     symbol: Optional[str] = None
@@ -101,7 +135,7 @@ def schedule_start(payload: ScheduleStart):
             now = dt.datetime.now(ZoneInfo("Asia/Tokyo"))
             target = now.replace(hour=int(hh), minute=int(mm), second=0, microsecond=0)
             if target <= now:
-                return {"ok": False, "message": f"{payload.time} is already past"}
+                target += dt.timedelta(days=1)
             delay = (target - now).total_seconds()
             _scheduled_time = payload.time
 
@@ -295,6 +329,23 @@ def account():
         }
     except Exception as e:
         return {"error": str(e)}
+
+# Trade history endpoints
+@app.get("/api/trade-history/orders")
+def trade_history_orders(limit: int = 100, symbol: Optional[str] = None):
+    return get_trade_orders(limit=limit, symbol=symbol)
+
+@app.get("/api/trade-history/daily")
+def trade_history_daily(days: int = 30):
+    return get_daily_pl(days=days)
+
+@app.get("/api/trade-history/timeline")
+def trade_history_timeline(date: Optional[str] = None):
+    return get_pl_timeline(date=date)
+
+@app.get("/api/trade-history/stats")
+def trade_history_stats(days: int = 30):
+    return get_trade_stats(days=days)
 
 # Serve built frontend if available
 frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
